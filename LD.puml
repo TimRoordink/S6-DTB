@@ -1,40 +1,44 @@
-@startdot
-graph ER {
-    fontname="Helvetica,Arial,sans-serif"
-    node [fontname="Helvetica,Arial,sans-serif"]
-    edge [fontname="Helvetica,Arial,sans-serif"]
-    ' layout=fdp
-    ' layout=neato
-    ' layout=circo
-    ' layout=twopi
-    layout=sfdp
-    node [shape=box]; Samples; Room; Status;
-    node [shape=ellipse]; Temperature; Humidity; VOC; NOX; PM1_0; PM2_5; PM4_0; PM10_0; Owner; Floor; Discription; 
-    Timestamp [label=<<U>Timestamp</U>> shape=ellipse];
-    Name [label=<<U>Name</U>> shape=ellipse];
-    Code [label=<<U>Code</U>> shape=ellipse];
-    node [shape=diamond]; "RoomName"; "StatusCode";
+@startuml
 
-    Samples -- RoomName [label="1"]; 
-    RoomName -- Room [label="N"]; 
-    Samples -- StatusCode [label="1"];
-    StatusCode -- Status [label="N"];
-    Samples -- Timestamp;
-    Samples -- Temperature;
-    Samples -- Humidity;
-    Samples -- VOC;
-    Samples -- NOX;
-    Samples -- PM1_0;
-    Samples -- PM2_5;
-    Samples -- PM4_0;
-    Samples -- PM10_0;
-    Room -- Owner;
-    Room -- Floor;
-    Room -- Name;
-    Status -- Code;
-    Status -- Discription;
+' configuration
+hide circle
+skinparam linetype ortho
+left to right direction
 
-    label = "\n\nEntity Relation Diagram Birdie";
-    fontsize=15;
+' gradient
+!define TABLE_GRADIENT_BACKGROUND #F2F2F2-fcffd6
+
+skinparam class {
+    BackgroundColor TABLE_GRADIENT_BACKGROUND
+    BorderColor Black
+    ArrowColor Blue
+ FontSize 13
 }
-@enddot
+
+entity "rooms" as rooms {
+  id: INT <<PK>>
+  --
+  name: TEXT
+  floor: INT
+  owner: TEXT
+}
+
+entity "samples" as samples {
+  timestamp: TEXT <<PK>>
+  --
+  status: INT <<FK>>
+  temperature: REAL
+  room_id: INT <<FK>>
+  hall: REAL
+}
+
+entity "status" as status {
+  id: INT <<PK>>
+  --
+  description: TEXT
+}
+
+samples }.. rooms
+samples }.. status
+
+@enduml
