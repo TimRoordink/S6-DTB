@@ -5,21 +5,23 @@
 #include "html.h"
 #include <esp32/rom/rtc.h>
 #include "driver/adc.h"
+#include <time.h>
 
-#define DROP_ALL_AT_START // Only uncomment when table structure changed
 
-const char* ssid = "Hotspot_Tim";
-const char* password = "Roordink";
+// #define DROP_ALL_AT_START // Only uncomment when table structure changed
+
+const char* ssid = "HotspotEmiel";
+const char* password = "HotspotEmiel";
 
 int roomID = 1;
-unsigned long lastSensorRead = 0;       
-const unsigned long interval = 10000; 
+unsigned long lastSensorRead = 0;
+const unsigned long interval = 5000;
 
 WebServer server(80);
-sqlite3 *db;
+sqlite3* db;
 
 // === Callback en SQL helper ===
-int callback(void *NotUsed, int argc, char **argv, char **azColName) {
+int callback(void* NotUsed, int argc, char** argv, char** azColName) {
   for (int i = 0; i < argc; i++) {
     Serial.printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
   }
@@ -140,8 +142,8 @@ void handleRefreshData() {
                 "<th>Timestamp</th><th>Status</th><th>Temperature</th><th>Hall</th><th>Room</th></tr>";
 
   const char* sql = R"sql(
-    SELECT d.timestamp, s.discription, d.temperature, d.hall, r.name
-    FROM Data d
+    SELECT d.timestamp, s.description, d.temperature, d.hall, r.name
+    FROM samples d
     LEFT JOIN status s ON d.status = s.id
     LEFT JOIN rooms r ON d.room_id = r.id
     ORDER BY d.timestamp DESC
@@ -178,7 +180,37 @@ void handleRefreshData() {
   server.send(200, "text/html", html);
 }
 
-void setupHall(){
+void setupTime() {
+  // Set timezone: CET/CEST (Amsterdam, with daylight saving)
+  setenv("TZ", "CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00", 1);
+  tzset();  // Apply the timezone setting
+
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
+  Serial.print("Wachten op NTP tijd");
+  time_t now = time(nullptr);
+  int retry = 0;
+  const int retry_limit = 10;
+  while (now < 8 * 3600 * 2 && retry < retry_limit) {
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+    retry++;
+  }
+  Serial.println();
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Fout bij ophalen tijd");
+    return;
+  }
+  Serial.println("Tijd gesynchroniseerd:");
+  Serial.println(asctime(&timeinfo));
+}
+
+
+
+void setupHall() {
   // Configure ADC channels
   adc1_config_width(ADC_WIDTH_BIT_12);
   adc1_config_channel_atten(ADC1_CHANNEL_0, ADC_ATTEN_DB_0);  // GPIO36
@@ -199,17 +231,17 @@ void insertSensorData(float temperature, int hallValue) {
 
   char timestamp[30];
   strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", nowTm);
-
+  int status = random(1, 5);
   // Compose SQL query string
   char sql[256];
   snprintf(sql, sizeof(sql),
-    "INSERT OR REPLACE INTO data (timestamp, status, temperature, room_id, hall) "
-    "VALUES ('%s', %d, %.2f, %d, %d);",
-    timestamp,
-    0,              // status id, change if you have dynamic statuses
-    temperature,
-    roomID,
-    hallValue);
+           "INSERT OR REPLACE INTO samples (timestamp, status, temperature, room_id, hall) "
+           "VALUES ('%s', %d, %.2f, %d, %d);",
+           timestamp,
+           status,  // status id, change if you have dynamic statuses
+           temperature,
+           roomID,
+           hallValue);
 
   executeSQL(sql);
 }
@@ -220,9 +252,11 @@ void setup() {
   WiFi.begin(ssid, password);
   Serial.print("Verbinden met WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500); Serial.print(".");
+    delay(500);
+    Serial.print(".");
   }
   Serial.println("\nWiFi verbonden: " + WiFi.localIP().toString());
+  setupTime();
 
   // if (!SPIFFS.format()) {
   //   Serial.println("SPIFFS format mislukt");
@@ -233,7 +267,7 @@ void setup() {
     Serial.println("SPIFFS mislukt");
     return;
   }
-  
+
   int rc = sqlite3_open("/spiffs/test.db", &db);
   if (rc) {
     Serial.printf("Can't open database: %s\n", sqlite3_errmsg(db));
@@ -242,14 +276,20 @@ void setup() {
 
   // Tabelstructuur
 #ifdef DROP_ALL_AT_START
-  executeSQL("DROP TABLE IF EXISTS data;");
+  executeSQL("DROP TABLE IF EXISTS samples;");
   executeSQL("DROP TABLE IF EXISTS rooms;");
   executeSQL("DROP TABLE IF EXISTS status;");
   delay(1000);
 #endif
-  executeSQL("CREATE TABLE IF NOT EXISTS data (timestamp TEXT PRIMARY KEY, status INT, temperature REAL, room_id INT, hall REAL);");
+  executeSQL("CREATE TABLE IF NOT EXISTS samples (timestamp TEXT PRIMARY KEY, status INT, temperature REAL, room_id INT, hall REAL);");
   executeSQL("CREATE TABLE IF NOT EXISTS rooms (id INTEGER PRIMARY KEY, name TEXT, floor INT, owner TEXT);");
-  executeSQL("CREATE TABLE IF NOT EXISTS status (id INTEGER PRIMARY KEY, discription TEXT);");
+  executeSQL("CREATE TABLE IF NOT EXISTS status (id INTEGER PRIMARY KEY, description TEXT UNIQUE);");
+
+  // Insert statuses with fixed IDs, only if they don't already exist
+  executeSQL("INSERT OR IGNORE INTO status (id, description) VALUES (1, 'Temp High');");
+  executeSQL("INSERT OR IGNORE INTO status (id, description) VALUES (2, 'Temp Low');");
+  executeSQL("INSERT OR IGNORE INTO status (id, description) VALUES (3, 'OK');");
+  executeSQL("INSERT OR IGNORE INTO status (id, description) VALUES (4, 'Hall Error');");
 
   Serial.println("Schema check:");
   executeSQL("SELECT sql FROM sqlite_master WHERE type='table';");
@@ -277,7 +317,7 @@ void loop() {
 
     // Read sensors here
     float temperature = temperatureRead();
-    int hallValue = hallReadDIY();         
+    int hallValue = hallReadDIY();
     insertSensorData(temperature, hallValue);
 
     // Optionally, insert into your database or update variables here
