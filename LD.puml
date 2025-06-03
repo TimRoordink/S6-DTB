@@ -41,4 +41,6 @@ entity "status" as status {
 samples }.. rooms
 samples }.. status
 
+title "Database Schema for S6-DTB"
+
 @enduml
