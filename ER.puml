@@ -6,35 +6,27 @@ graph ER {
     ' layout=fdp
     ' layout=neato
     ' layout=circo
-    ' layout=twopi
-    layout=sfdp
+    layout=twopi
+    ' layout=sfdp
     node [shape=box]; Samples; Room; Status;
-    node [shape=ellipse]; Temperature; Humidity; VOC; NOX; PM1_0; PM2_5; PM4_0; PM10_0; Owner; Floor; Discription; 
+    node [shape=ellipse]; Temperature; Hall; Owner; Floor; Discription;
     Timestamp [label=<<U>Timestamp</U>> shape=ellipse];
-    Name [label=<<U>Name</U>> shape=ellipse];
-    Code [label=<<U>Code</U>> shape=ellipse];
-    node [shape=diamond]; "RoomName"; "StatusCode";
+    RoomID [label=<<U>RoomID</U>> shape=diamond];
+    StatusID [label=<<U>StatusID</U>> shape=diamond];
 
-    Samples -- RoomName [label="1"]; 
-    RoomName -- Room [label="N"]; 
-    Samples -- StatusCode [label="1"];
-    StatusCode -- Status [label="N"];
+    Samples -- RoomID [label="1"];
+    RoomID -- Room [label="N"];
+    Samples -- StatusID [label="1"];
+    StatusID -- Status [label="N"];
     Samples -- Timestamp;
     Samples -- Temperature;
-    Samples -- Humidity;
-    Samples -- VOC;
-    Samples -- NOX;
-    Samples -- PM1_0;
-    Samples -- PM2_5;
-    Samples -- PM4_0;
-    Samples -- PM10_0;
+    Samples -- Hall
     Room -- Owner;
     Room -- Floor;
     Room -- Name;
-    Status -- Code;
     Status -- Discription;
 
-    label = "\n\nEntity Relation Diagram Birdie";
+    label = "\n\nEntity Relation Diagram S6-DTB";
     fontsize=15;
 }
 @enddot
