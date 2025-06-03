@@ -6,8 +6,8 @@
 
 #define DROP_ALL_AT_START // Only uncomment when table structure changed
 
-const char* ssid = "Marco34";
-const char* password = "Snijheesters34";
+const char* ssid = "Hotspot_Tim";
+const char* password = "Roordink";
 
 int roomID = 1;
 
