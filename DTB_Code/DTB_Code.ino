@@ -149,7 +149,7 @@ void handleRefreshData() {
     ORDER BY d.timestamp DESC
     LIMIT 50
   )sql";
-
+ 
   sqlite3_stmt* stmt;
   int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
   if (rc != SQLITE_OK) {
